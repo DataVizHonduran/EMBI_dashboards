@@ -3,7 +3,7 @@
 A live dashboard analyzing holdings data from major emerging markets bond ETFs, updated daily with interactive treemap visualizations.
 
 ## 🔗 Live Dashboard
-Visit: [mydomain.xyz](https://mydomain.xyz) *(replace with your actual domain)*
+Visit: [boquin.xyz](https://boquin.xyz) *(replace with your actual domain)*
 
 ## 📊 What It Shows
 
