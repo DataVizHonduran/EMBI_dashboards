@@ -255,7 +255,7 @@ def generate_dashboard_html(etf_info):
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 20px;
-            min-height: 400px;
+            min-height: 700px;
         }}
         
         .placeholder {{
@@ -383,12 +383,6 @@ def generate_dashboard_html(etf_info):
         #countryYieldContainer {{
             display: none;
         }}
-        
-        iframe {{
-            width: 100%;
-            height: 700px;
-            border: none;
-        }}
     </style>
 </head>
 <body>
@@ -400,7 +394,7 @@ def generate_dashboard_html(etf_info):
     <main>
         <div class="controls">
             <label for="etfSelect">Select ETF:</label>
-            <select id="etfSelect" onchange="showChart()">
+            <select id="etfSelect">
                 <option value="">Choose an ETF...</option>
 """
     
@@ -479,54 +473,7 @@ def generate_dashboard_html(etf_info):
             const countryContainer = document.getElementById('countryYieldContainer');
             const countryTable = document.getElementById('countryYieldTable');
             
-            if (etf) {
-                const chartPath = `charts/${etf}.html`;
-                
-                const iframe = document.createElement('iframe');
-                iframe.src = chartPath;
-                
-                iframe.onerror = function() {
-                    container.innerHTML = `<div class="placeholder"><h3>Error Loading Chart</h3><p>Could not load ${chartPath}</p></div>`;
-                };
-                
-                container.innerHTML = '';
-                container.appendChild(iframe);
-                
-                if (countryYieldData[etf]) {
-                    countryContainer.style.display = 'block';
-                    
-                    let tableHTML = `
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Country</th>
-                                    <th>Avg YTM (%)</th>
-                                    <th>Total Weight (%)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                    `;
-                    
-                    countryYieldData[etf].forEach(item => {
-                        tableHTML += `
-                            <tr>
-                                <td>${item.country}</td>
-                                <td>${item.ytm.toFixed(2)}</td>
-                                <td>${item.weight.toFixed(2)}</td>
-                            </tr>
-                        `;
-                    });
-                    
-                    tableHTML += `
-                            </tbody>
-                        </table>
-                    `;
-                    
-                    countryTable.innerHTML = tableHTML;
-                } else {
-                    countryContainer.style.display = 'none';
-                }
-            } else {
+            if (!etf) {
                 container.innerHTML = `
                     <div class="placeholder">
                         <h3>Welcome to the EM Bond ETF Dashboard!</h3>
@@ -543,8 +490,28 @@ def generate_dashboard_html(etf_info):
                     </div>
                 `;
                 countryContainer.style.display = 'none';
+                return;
+            }
+            
+            container.innerHTML = '<iframe src="charts/' + etf + '.html" width="100%" height="700" frameborder="0" style="border:none;"></iframe>';
+            
+            if (countryYieldData[etf]) {
+                countryContainer.style.display = 'block';
+                
+                let tableHTML = '<table><thead><tr><th>Country</th><th>Avg YTM (%)</th><th>Total Weight (%)</th></tr></thead><tbody>';
+                
+                countryYieldData[etf].forEach(item => {
+                    tableHTML += '<tr><td>' + item.country + '</td><td>' + item.ytm.toFixed(2) + '</td><td>' + item.weight.toFixed(2) + '</td></tr>';
+                });
+                
+                tableHTML += '</tbody></table>';
+                countryTable.innerHTML = tableHTML;
+            } else {
+                countryContainer.style.display = 'none';
             }
         }
+        
+        document.getElementById('etfSelect').addEventListener('change', showChart);
     </script>
 </body>
 </html>"""
