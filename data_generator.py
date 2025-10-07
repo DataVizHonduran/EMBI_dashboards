@@ -144,6 +144,30 @@ def get_etf_summary(df, etf_code):
         print(f"Error calculating summary for {etf_code}: {str(e)}")
         return None
 
+def get_country_yield_data(df):
+    """Calculate average yield by country"""
+    try:
+        if 'Location' not in df.columns:
+            return None
+            
+        df_clean = df.dropna(subset=["Weight (%)", "YTM (%)"])
+        df_clean = df_clean[df_clean["Weight (%)"] > 0]
+        
+        # Group by country and calculate weighted average yield and total weight
+        country_stats = df_clean.groupby('Location').agg({
+            'YTM (%)': 'mean',
+            'Weight (%)': 'sum'
+        }).round(2)
+        
+        # Sort by weight descending
+        country_stats = country_stats.sort_values('Weight (%)', ascending=False)
+        
+        return country_stats
+        
+    except Exception as e:
+        print(f"Error calculating country yield data: {str(e)}")
+        return None
+
 def generate_charts():
     """Generate all ETF charts and HTML files"""
     print("Starting ETF dashboard generation...")
@@ -172,9 +196,13 @@ def generate_charts():
                 # Get summary stats
                 summary = get_etf_summary(df, etf_code)
                 
+                # Get country yield data
+                country_yields = get_country_yield_data(df)
+                
                 etf_info[etf_code] = {
                     'name': CHART_NAMES[etf_code],
                     'summary': summary,
+                    'country_yields': country_yields,
                     'last_updated': datetime.now().isoformat()
                 }
             else:
@@ -195,6 +223,47 @@ def generate_dashboard_html(etf_info):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emerging Markets Bond ETF Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .country-yield-table {{
+            margin-top: 30px;
+            overflow-x: auto;
+        }}
+        
+        .country-yield-table table {{
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+        
+        .country-yield-table th,
+        .country-yield-table td {{
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }}
+        
+        .country-yield-table th {{
+            background-color: #2c3e50;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }}
+        
+        .country-yield-table tr:hover {{
+            background-color: #f5f5f5;
+        }}
+        
+        .country-yield-table td:nth-child(2),
+        .country-yield-table td:nth-child(3) {{
+            text-align: right;
+        }}
+        
+        #countryYieldContainer {{
+            display: none;
+        }}
+    </style>
 </head>
 <body>
     <header>
@@ -258,15 +327,71 @@ def generate_dashboard_html(etf_info):
     
     html_content += """            </div>
         </div>
+        
+        <div id="countryYieldContainer" class="country-yield-table">
+            <h3>Average Yield by Country</h3>
+            <div id="countryYieldTable"></div>
+        </div>
     </main>
     
     <script>
+        const countryYieldData = {
+"""
+    
+    # Add country yield data as JavaScript object
+    for etf_code, info in etf_info.items():
+        if info.get('country_yields') is not None:
+            html_content += f"            '{etf_code}': [\n"
+            for country, row in info['country_yields'].iterrows():
+                html_content += f"                {{country: '{country}', ytm: {row['YTM (%)']}, weight: {row['Weight (%)']}}},\n"
+            html_content += "            ],\n"
+    
+    html_content += """        };
+        
         function showChart() {
             const etf = document.getElementById('etfSelect').value;
             const container = document.getElementById('chartContainer');
+            const countryContainer = document.getElementById('countryYieldContainer');
+            const countryTable = document.getElementById('countryYieldTable');
             
             if (etf) {
                 container.innerHTML = `<iframe src="charts/${etf}.html" width="100%" height="700px" frameborder="0"></iframe>`;
+                
+                // Show country yield table if data exists
+                if (countryYieldData[etf]) {
+                    countryContainer.style.display = 'block';
+                    
+                    let tableHTML = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Country</th>
+                                    <th>Avg YTM (%)</th>
+                                    <th>Total Weight (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    countryYieldData[etf].forEach(item => {
+                        tableHTML += `
+                            <tr>
+                                <td>${item.country}</td>
+                                <td>${item.ytm.toFixed(2)}</td>
+                                <td>${item.weight.toFixed(2)}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableHTML += `
+                            </tbody>
+                        </table>
+                    `;
+                    
+                    countryTable.innerHTML = tableHTML;
+                } else {
+                    countryContainer.style.display = 'none';
+                }
             } else {
                 container.innerHTML = `
                     <div class="placeholder">
@@ -283,6 +408,7 @@ def generate_dashboard_html(etf_info):
                         </div>
                     </div>
                 `;
+                countryContainer.style.display = 'none';
             }
         }
     </script>
