@@ -4,18 +4,173 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emerging Markets Bond ETF Dashboard</title>
-    <link rel="stylesheet" href="style.css">
     <style>
-        .country-yield-table {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .last-updated {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .controls label {
+            font-weight: 600;
+            margin-right: 10px;
+            color: #333;
+        }
+        
+        #etfSelect {
+            padding: 10px 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            min-width: 300px;
+            cursor: pointer;
+        }
+        
+        #etfSelect:hover {
+            border-color: #667eea;
+        }
+        
+        #chartContainer {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            min-height: 400px;
+        }
+        
+        .placeholder {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .placeholder h3 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .description {
             margin-top: 30px;
+            text-align: left;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .description ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .description li {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .stats {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .stats h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 8px;
+            color: white;
+        }
+        
+        .stat-card h4 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+            padding-bottom: 10px;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+        
+        .country-yield-table {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 20px;
             overflow-x: auto;
+        }
+        
+        .country-yield-table h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
         }
         
         .country-yield-table table {
             width: 100%;
             border-collapse: collapse;
             background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .country-yield-table th,
@@ -45,12 +200,18 @@
         #countryYieldContainer {
             display: none;
         }
+        
+        iframe {
+            width: 100%;
+            height: 700px;
+            border: none;
+        }
     </style>
 </head>
 <body>
     <header>
         <h1>📊 Emerging Markets Bond ETF Dashboard</h1>
-        <p class="last-updated">Last updated: 2025-10-07 at 15:06 UTC</p>
+        <p class="last-updated">Last updated: 2025-10-07 at 15:11 UTC</p>
     </header>
     
     <main>
@@ -154,13 +315,6 @@
     </main>
     
     <script>
-        // Debug function
-        function debugChart() {
-            const etf = document.getElementById('etfSelect').value;
-            console.log('Selected ETF:', etf);
-            console.log('Chart path:', `charts/${etf}.html`);
-        }
-        
         const countryYieldData = {
             'CEMBI': [
                 {country: 'China', ytm: 4.78, weight: 6.29},
@@ -363,34 +517,19 @@
             const countryContainer = document.getElementById('countryYieldContainer');
             const countryTable = document.getElementById('countryYieldTable');
             
-            console.log('showChart called with:', etf); // Debug line
-            
             if (etf) {
-                // Use absolute path relative to index.html location
                 const chartPath = `charts/${etf}.html`;
-                console.log('Attempting to load:', chartPath); // Debug line
                 
-                // Create iframe with better error handling
                 const iframe = document.createElement('iframe');
                 iframe.src = chartPath;
-                iframe.width = '100%';
-                iframe.height = '700px';
-                iframe.frameBorder = '0';
-                iframe.style.border = 'none';
-                
-                iframe.onload = function() {
-                    console.log('Chart loaded successfully for:', etf);
-                };
                 
                 iframe.onerror = function() {
-                    console.error('Failed to load chart:', chartPath);
-                    container.innerHTML = `<div class="placeholder"><h3>Error Loading Chart</h3><p>Could not load ${chartPath}</p><p>Make sure the charts folder exists and contains ${etf}.html</p></div>`;
+                    container.innerHTML = `<div class="placeholder"><h3>Error Loading Chart</h3><p>Could not load ${chartPath}</p></div>`;
                 };
                 
                 container.innerHTML = '';
                 container.appendChild(iframe);
                 
-                // Show country yield table if data exists
                 if (countryYieldData[etf]) {
                     countryContainer.style.display = 'block';
                     
