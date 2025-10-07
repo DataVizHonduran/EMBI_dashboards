@@ -335,6 +335,13 @@ def generate_dashboard_html(etf_info):
     </main>
     
     <script>
+        // Debug function
+        function debugChart() {
+            const etf = document.getElementById('etfSelect').value;
+            console.log('Selected ETF:', etf);
+            console.log('Chart path:', `charts/${etf}.html`);
+        }
+        
         const countryYieldData = {
 """
     
@@ -354,8 +361,32 @@ def generate_dashboard_html(etf_info):
             const countryContainer = document.getElementById('countryYieldContainer');
             const countryTable = document.getElementById('countryYieldTable');
             
+            console.log('showChart called with:', etf); // Debug line
+            
             if (etf) {
-                container.innerHTML = `<iframe src="charts/${etf}.html" width="100%" height="700px" frameborder="0"></iframe>`;
+                // Use absolute path relative to index.html location
+                const chartPath = `charts/${etf}.html`;
+                console.log('Attempting to load:', chartPath); // Debug line
+                
+                // Create iframe with better error handling
+                const iframe = document.createElement('iframe');
+                iframe.src = chartPath;
+                iframe.width = '100%';
+                iframe.height = '700px';
+                iframe.frameBorder = '0';
+                iframe.style.border = 'none';
+                
+                iframe.onload = function() {
+                    console.log('Chart loaded successfully for:', etf);
+                };
+                
+                iframe.onerror = function() {
+                    console.error('Failed to load chart:', chartPath);
+                    container.innerHTML = `<div class="placeholder"><h3>Error Loading Chart</h3><p>Could not load ${chartPath}</p><p>Make sure the charts folder exists and contains ${etf}.html</p></div>`;
+                };
+                
+                container.innerHTML = '';
+                container.appendChild(iframe);
                 
                 // Show country yield table if data exists
                 if (countryYieldData[etf]) {
