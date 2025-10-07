@@ -6,6 +6,7 @@ from scipy.optimize import curve_fit
 import os
 from datetime import datetime
 
+# ETF Data URLs
 ETF_URLS = {
     'CEMBI': 'https://www.ishares.com/us/products/239525/ishares-emerging-markets-corporate-bond-etf/1467271812596.ajax?fileType=csv&fileName=CEMB_holdings&dataType=fund',
     'EMBI': 'https://www.ishares.com/us/products/239572/ishares-jp-morgan-usd-emerging-markets-bond-etf/1467271812596.ajax?fileType=csv&fileName=EMB_holdings&dataType=fund',
@@ -13,51 +14,68 @@ ETF_URLS = {
     'EMHY': "https://www.ishares.com/us/products/239527/ishares-emerging-markets-high-yield-bond-etf/1467271812596.ajax?fileType=csv&fileName=EMHY_holdings&dataType=fund"
 }
 
+# Chart names for display
 CHART_NAMES = {
     "EMBI": "iShares J.P. Morgan USD Emerging Markets Bond ETF",
-    "CEMBI": "iShares Emerging Markets Corporate Bond ETF", 
+    "CEMBI": "iShares Emerging Markets Corporate Bond ETF",
     "GBI": "iShares Emerging Markets Local Currency Bond ETF",
     "EMHY": "iShares Emerging Markets High Yield Bond ETF"
 }
 
+
 def fetch_and_clean_data(etf_code):
+    """Fetch and clean data for a specific ETF"""
     try:
         print(f"Fetching data for {etf_code}...")
         url = ETF_URLS[etf_code]
         
+        # Read CSV starting from row 10 (header=9)
         df = pd.read_csv(url, header=9)
         
+        # Create a copy for processing
         new_dfc = df.copy()
         
+        # Clean the data - remove rows with 0 weight and limit to top 1000
         new_dfc = new_dfc[pd.to_numeric(new_dfc["Weight (%)"], errors="coerce") != 0].head(1000)
         
+        # Convert columns to numeric
         new_dfc["Weight (%)"] = pd.to_numeric(new_dfc["Weight (%)"], errors="coerce")
         new_dfc["YTM (%)"] = pd.to_numeric(new_dfc.get("YTM (%)", np.nan), errors="coerce").round(2)
         new_dfc["Maturity"] = new_dfc["Maturity"].astype(str)
         
+        # Remove columns with too many null values
         temp_bool = new_dfc.isnull().sum() > 100
         new_dfc = new_dfc.loc[:, ~temp_bool]
         
+        # Remove rows with too many null values
         temp_bool = new_dfc.isnull().sum(axis=1) > 20
         new_dfc = new_dfc.loc[~temp_bool]
         
+        # Add date_of_pull column with today's date
         new_dfc['date_of_pull'] = datetime.now().strftime('%Y-%m-%d')
         
+        # Define the historical CSV filename
         historical_csv = f'docs/{etf_code.lower()}_prices.csv'
         
+        # Check if historical file exists
         if os.path.exists(historical_csv):
             print(f"Appending to existing file: {historical_csv}")
+            # Read existing data
             existing_df = pd.read_csv(historical_csv)
+            # Append new data
             combined_df = pd.concat([existing_df, new_dfc], ignore_index=True)
+            # Save combined data
             combined_df.to_csv(historical_csv, index=False)
         else:
             print(f"Creating new file: {historical_csv}")
+            # Save new data
             new_dfc.to_csv(historical_csv, index=False)
         
-        if {"Location","Maturity"}.issubset(new_dfc.columns):
-            categories = ["Location","Name","Maturity"]
-        elif {"Location","Sector"}.issubset(new_dfc.columns):
-            categories = ["Location","Sector"]
+        # Determine categories for treemap based on available columns
+        if {"Location", "Maturity"}.issubset(new_dfc.columns):
+            categories = ["Location", "Name", "Maturity"]
+        elif {"Location", "Sector"}.issubset(new_dfc.columns):
+            categories = ["Location", "Sector"]
         else:
             categories = ["Location"]
         
@@ -67,8 +85,11 @@ def fetch_and_clean_data(etf_code):
         print(f"Error fetching data for {etf_code}: {str(e)}")
         return None, None
 
+
 def create_treemap(df, categories, etf_code):
+    """Create treemap visualization for an ETF"""
     try:
+        # Clean data for visualization
         df_clean = df.dropna(subset=["Weight (%)"])
         df_clean = df_clean[df_clean["Weight (%)"] > 0]
         
@@ -76,10 +97,12 @@ def create_treemap(df, categories, etf_code):
             print(f"No data available for {etf_code}")
             return None
         
+        # Calculate color scale for YTM
         df_des = df_clean["YTM (%)"].fillna(0).describe()
         scale_max = df_des["mean"] + df_des["std"]
         scale_min = df_des["mean"] - df_des["std"]
         
+        # Create treemap
         fig = px.treemap(
             df_clean,
             path=categories,
@@ -90,6 +113,7 @@ def create_treemap(df, categories, etf_code):
             title=f'{CHART_NAMES[etf_code]} - Holdings Treemap'
         )
         
+        # Update layout for better appearance
         fig.update_layout(
             title_font_size=16,
             font_size=12,
@@ -103,7 +127,9 @@ def create_treemap(df, categories, etf_code):
         print(f"Error creating treemap for {etf_code}: {str(e)}")
         return None
 
+
 def get_etf_summary(df, etf_code):
+    """Get summary statistics for an ETF"""
     try:
         df_clean = df.dropna(subset=["Weight (%)"])
         df_clean = df_clean[df_clean["Weight (%)"] > 0]
@@ -121,30 +147,12 @@ def get_etf_summary(df, etf_code):
         print(f"Error calculating summary for {etf_code}: {str(e)}")
         return None
 
-def get_country_yield_data(df):
-    try:
-        if 'Location' not in df.columns:
-            return None
-            
-        df_clean = df.dropna(subset=["Weight (%)", "YTM (%)"])
-        df_clean = df_clean[df_clean["Weight (%)"] > 0]
-        
-        country_stats = df_clean.groupby('Location').agg({
-            'YTM (%)': 'mean',
-            'Weight (%)': 'sum'
-        }).round(2)
-        
-        country_stats = country_stats.sort_values('Weight (%)', ascending=False)
-        
-        return country_stats
-        
-    except Exception as e:
-        print(f"Error calculating country yield data: {str(e)}")
-        return None
 
 def generate_charts():
+    """Generate all ETF charts and HTML files"""
     print("Starting ETF dashboard generation...")
     
+    # Ensure docs directory exists
     os.makedirs('docs', exist_ok=True)
     os.makedirs('docs/charts', exist_ok=True)
     
@@ -153,23 +161,24 @@ def generate_charts():
     for etf_code in ETF_URLS.keys():
         print(f"\nProcessing {etf_code}...")
         
+        # Fetch and clean data
         df, categories = fetch_and_clean_data(etf_code)
         
         if df is not None and not df.empty:
+            # Create treemap
             fig = create_treemap(df, categories, etf_code)
             
             if fig is not None:
+                # Save chart as HTML
                 fig.write_html(f'docs/charts/{etf_code}.html')
                 print(f"Saved chart for {etf_code}")
                 
+                # Get summary stats
                 summary = get_etf_summary(df, etf_code)
-                
-                country_yields = get_country_yield_data(df)
                 
                 etf_info[etf_code] = {
                     'name': CHART_NAMES[etf_code],
                     'summary': summary,
-                    'country_yields': country_yields,
                     'last_updated': datetime.now().isoformat()
                 }
             else:
@@ -177,213 +186,20 @@ def generate_charts():
         else:
             print(f"No data available for {etf_code}")
     
+    # Generate main dashboard HTML
     generate_dashboard_html(etf_info)
     print("ETF dashboard generation complete!")
 
+
 def generate_dashboard_html(etf_info):
+    """Generate the main index.html for the dashboard"""
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emerging Markets Bond ETF Dashboard</title>
-    <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-        
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }}
-        
-        header {{
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-        }}
-        
-        header h1 {{
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }}
-        
-        .last-updated {{
-            font-size: 0.9em;
-            opacity: 0.9;
-        }}
-        
-        main {{
-            max-width: 1400px;
-            margin: 0 auto;
-        }}
-        
-        .controls {{
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }}
-        
-        .controls label {{
-            font-weight: 600;
-            margin-right: 10px;
-            color: #333;
-        }}
-        
-        #etfSelect {{
-            padding: 10px 15px;
-            font-size: 16px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            min-width: 300px;
-            cursor: pointer;
-        }}
-        
-        #etfSelect:hover {{
-            border-color: #667eea;
-        }}
-        
-        #chartContainer {{
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            min-height: 700px;
-        }}
-        
-        .placeholder {{
-            text-align: center;
-            padding: 60px 20px;
-            color: #666;
-        }}
-        
-        .placeholder h3 {{
-            font-size: 1.8em;
-            margin-bottom: 15px;
-            color: #333;
-        }}
-        
-        .description {{
-            margin-top: 30px;
-            text-align: left;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }}
-        
-        .description ul {{
-            list-style: none;
-            padding: 0;
-        }}
-        
-        .description li {{
-            padding: 10px;
-            margin: 5px 0;
-            background: #f8f9fa;
-            border-radius: 5px;
-        }}
-        
-        .stats {{
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }}
-        
-        .stats h3 {{
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-        }}
-        
-        .stats-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-        }}
-        
-        .stat-card {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            border-radius: 8px;
-            color: white;
-        }}
-        
-        .stat-card h4 {{
-            font-size: 1.3em;
-            margin-bottom: 15px;
-            border-bottom: 2px solid rgba(255,255,255,0.3);
-            padding-bottom: 10px;
-        }}
-        
-        .stat-row {{
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-        }}
-        
-        .stat-row:last-child {{
-            border-bottom: none;
-        }}
-        
-        .country-yield-table {{
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-top: 20px;
-            overflow-x: auto;
-        }}
-        
-        .country-yield-table h3 {{
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-        }}
-        
-        .country-yield-table table {{
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-        }}
-        
-        .country-yield-table th,
-        .country-yield-table td {{
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }}
-        
-        .country-yield-table th {{
-            background-color: #2c3e50;
-            color: white;
-            font-weight: 600;
-            position: sticky;
-            top: 0;
-        }}
-        
-        .country-yield-table tr:hover {{
-            background-color: #f5f5f5;
-        }}
-        
-        .country-yield-table td:nth-child(2),
-        .country-yield-table td:nth-child(3) {{
-            text-align: right;
-        }}
-        
-        #countryYieldContainer {{
-            display: none;
-        }}
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
@@ -394,7 +210,7 @@ def generate_dashboard_html(etf_info):
     <main>
         <div class="controls">
             <label for="etfSelect">Select ETF:</label>
-            <select id="etfSelect">
+            <select id="etfSelect" onchange="showChart()">
                 <option value="">Choose an ETF...</option>
 """
     
@@ -447,33 +263,16 @@ def generate_dashboard_html(etf_info):
     
     html_content += """            </div>
         </div>
-        
-        <div id="countryYieldContainer" class="country-yield-table">
-            <h3>Average Yield by Country</h3>
-            <div id="countryYieldTable"></div>
-        </div>
     </main>
     
     <script>
-        const countryYieldData = {
-"""
-    
-    for etf_code, info in etf_info.items():
-        if info.get('country_yields') is not None:
-            html_content += f"            '{etf_code}': [\n"
-            for country, row in info['country_yields'].iterrows():
-                html_content += f"                {{country: '{country}', ytm: {row['YTM (%)']}, weight: {row['Weight (%)']}}},\n"
-            html_content += "            ],\n"
-    
-    html_content += """        };
-        
         function showChart() {
             const etf = document.getElementById('etfSelect').value;
             const container = document.getElementById('chartContainer');
-            const countryContainer = document.getElementById('countryYieldContainer');
-            const countryTable = document.getElementById('countryYieldTable');
             
-            if (!etf) {
+            if (etf) {
+                container.innerHTML = `<iframe src="charts/${etf}.html" width="100%" height="700px" frameborder="0"></iframe>`;
+            } else {
                 container.innerHTML = `
                     <div class="placeholder">
                         <h3>Welcome to the EM Bond ETF Dashboard!</h3>
@@ -489,35 +288,15 @@ def generate_dashboard_html(etf_info):
                         </div>
                     </div>
                 `;
-                countryContainer.style.display = 'none';
-                return;
-            }
-            
-            container.innerHTML = '<iframe src="charts/' + etf + '.html" width="100%" height="700" frameborder="0" style="border:none;"></iframe>';
-            
-            if (countryYieldData[etf]) {
-                countryContainer.style.display = 'block';
-                
-                let tableHTML = '<table><thead><tr><th>Country</th><th>Avg YTM (%)</th><th>Total Weight (%)</th></tr></thead><tbody>';
-                
-                countryYieldData[etf].forEach(item => {
-                    tableHTML += '<tr><td>' + item.country + '</td><td>' + item.ytm.toFixed(2) + '</td><td>' + item.weight.toFixed(2) + '</td></tr>';
-                });
-                
-                tableHTML += '</tbody></table>';
-                countryTable.innerHTML = tableHTML;
-            } else {
-                countryContainer.style.display = 'none';
             }
         }
-        
-        document.getElementById('etfSelect').addEventListener('change', showChart);
     </script>
 </body>
 </html>"""
     
     with open('docs/index.html', 'w') as f:
         f.write(html_content)
+
 
 if __name__ == "__main__":
     generate_charts()
