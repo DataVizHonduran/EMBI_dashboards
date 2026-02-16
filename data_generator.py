@@ -54,22 +54,10 @@ def fetch_and_clean_data(etf_code):
         # Add date_of_pull column with today's date
         new_dfc['date_of_pull'] = datetime.now().strftime('%Y-%m-%d')
         
-        # Define the historical CSV filename
-        historical_csv = f'docs/{etf_code.lower()}_prices.csv'
-        
-        # Check if historical file exists
-        if os.path.exists(historical_csv):
-            print(f"Appending to existing file: {historical_csv}")
-            # Read existing data
-            existing_df = pd.read_csv(historical_csv)
-            # Append new data
-            combined_df = pd.concat([existing_df, new_dfc], ignore_index=True)
-            # Save combined data
-            combined_df.to_csv(historical_csv, index=False)
-        else:
-            print(f"Creating new file: {historical_csv}")
-            # Save new data
-            new_dfc.to_csv(historical_csv, index=False)
+        # Save current-day holdings only
+        csv_path = f'docs/{etf_code.lower()}_prices.csv'
+        print(f"Writing current-day data to: {csv_path}")
+        new_dfc.to_csv(csv_path, index=False)
         
         # Determine categories for treemap based on available columns
         if {"Location", "Maturity"}.issubset(new_dfc.columns):
