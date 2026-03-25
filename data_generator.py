@@ -11,7 +11,8 @@ ETF_URLS = {
     'CEMBI': 'https://www.ishares.com/us/products/239525/ishares-emerging-markets-corporate-bond-etf/1467271812596.ajax?fileType=csv&fileName=CEMB_holdings&dataType=fund',
     'EMBI': 'https://www.ishares.com/us/products/239572/ishares-jp-morgan-usd-emerging-markets-bond-etf/1467271812596.ajax?fileType=csv&fileName=EMB_holdings&dataType=fund',
     'GBI': 'https://www.ishares.com/us/products/239528/ishares-emerging-markets-local-currency-bond-etf/1467271812596.ajax?fileType=csv&fileName=LEMB_holdings&dataType=fund',
-    'EMHY': "https://www.ishares.com/us/products/239527/ishares-emerging-markets-high-yield-bond-etf/1467271812596.ajax?fileType=csv&fileName=EMHY_holdings&dataType=fund"
+    'EMHY': "https://www.ishares.com/us/products/239527/ishares-emerging-markets-high-yield-bond-etf/1467271812596.ajax?fileType=csv&fileName=EMHY_holdings&dataType=fund",
+    'LQD': 'https://www.ishares.com/us/products/239566/ishares-iboxx-investment-grade-corporate-bond-etf/1467271812596.ajax?fileType=csv&fileName=LQD_holdings&dataType=fund'
 }
 
 # Chart names for display
@@ -19,7 +20,8 @@ CHART_NAMES = {
     "EMBI": "iShares J.P. Morgan USD Emerging Markets Bond ETF",
     "CEMBI": "iShares Emerging Markets Corporate Bond ETF",
     "GBI": "iShares Emerging Markets Local Currency Bond ETF",
-    "EMHY": "iShares Emerging Markets High Yield Bond ETF"
+    "EMHY": "iShares Emerging Markets High Yield Bond ETF",
+    "LQD": "iShares iBoxx $ Investment Grade Corporate Bond ETF"
 }
 
 
@@ -60,7 +62,10 @@ def fetch_and_clean_data(etf_code):
         new_dfc.to_csv(csv_path, index=False)
         
         # Determine categories for treemap based on available columns
-        if {"Location", "Maturity"}.issubset(new_dfc.columns):
+        if etf_code == 'LQD' and {"Sector", "Name"}.issubset(new_dfc.columns):
+            # LQD is US IG corporates — sector breakdown is more informative than geography
+            categories = ["Sector", "Name"]
+        elif {"Location", "Maturity"}.issubset(new_dfc.columns):
             categories = ["Location", "Name", "Maturity"]
         elif {"Location", "Sector"}.issubset(new_dfc.columns):
             categories = ["Location", "Sector"]
@@ -219,11 +224,12 @@ def generate_dashboard_html(etf_info):
                         <li><strong>CEMBI</strong> - EM Corporate Bonds</li>
                         <li><strong>GBI</strong> - EM Local Currency Bonds</li>
                         <li><strong>EMHY</strong> - EM High Yield Bonds</li>
+                        <li><strong>LQD</strong> - US Investment Grade Corporate Bonds</li>
                     </ul>
                 </div>
             </div>
         </div>
-        
+
         <div class="stats">
             <h3>ETF Quick Stats</h3>
             <div class="stats-grid">
@@ -272,6 +278,7 @@ def generate_dashboard_html(etf_info):
                                 <li><strong>CEMBI</strong> - EM Corporate Bonds</li>
                                 <li><strong>GBI</strong> - EM Local Currency Bonds</li>
                                 <li><strong>EMHY</strong> - EM High Yield Bonds</li>
+                                <li><strong>LQD</strong> - US Investment Grade Corporate Bonds</li>
                             </ul>
                         </div>
                     </div>
