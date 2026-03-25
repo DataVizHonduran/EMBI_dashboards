@@ -12,7 +12,8 @@ ETF_URLS = {
     'EMBI': 'https://www.ishares.com/us/products/239572/ishares-jp-morgan-usd-emerging-markets-bond-etf/1467271812596.ajax?fileType=csv&fileName=EMB_holdings&dataType=fund',
     'GBI': 'https://www.ishares.com/us/products/239528/ishares-emerging-markets-local-currency-bond-etf/1467271812596.ajax?fileType=csv&fileName=LEMB_holdings&dataType=fund',
     'EMHY': "https://www.ishares.com/us/products/239527/ishares-emerging-markets-high-yield-bond-etf/1467271812596.ajax?fileType=csv&fileName=EMHY_holdings&dataType=fund",
-    'LQD': 'https://www.ishares.com/us/products/239566/ishares-iboxx-investment-grade-corporate-bond-etf/1467271812596.ajax?fileType=csv&fileName=LQD_holdings&dataType=fund'
+    'LQD': 'https://www.ishares.com/us/products/239566/ishares-iboxx-investment-grade-corporate-bond-etf/1467271812596.ajax?fileType=csv&fileName=LQD_holdings&dataType=fund',
+    'HYG': 'https://www.ishares.com/us/products/239565/ishares-iboxx-high-yield-corporate-bond-etf/1467271812596.ajax?fileType=csv&fileName=HYG_holdings&dataType=fund'
 }
 
 # Chart names for display
@@ -21,7 +22,8 @@ CHART_NAMES = {
     "CEMBI": "iShares Emerging Markets Corporate Bond ETF",
     "GBI": "iShares Emerging Markets Local Currency Bond ETF",
     "EMHY": "iShares Emerging Markets High Yield Bond ETF",
-    "LQD": "iShares iBoxx $ Investment Grade Corporate Bond ETF"
+    "LQD": "iShares iBoxx $ Investment Grade Corporate Bond ETF",
+    "HYG": "iShares iBoxx $ High Yield Corporate Bond ETF"
 }
 
 
@@ -62,7 +64,7 @@ def fetch_and_clean_data(etf_code):
         new_dfc.to_csv(csv_path, index=False)
         
         # Determine categories for treemap based on available columns
-        if etf_code == 'LQD' and {"Sector", "Name"}.issubset(new_dfc.columns):
+        if etf_code in ('LQD', 'HYG') and {"Sector", "Name"}.issubset(new_dfc.columns):
             # LQD is US IG corporates — sector breakdown is more informative than geography
             categories = ["Sector", "Name"]
         elif {"Location", "Maturity"}.issubset(new_dfc.columns):
@@ -225,6 +227,7 @@ def generate_dashboard_html(etf_info):
                         <li><strong>GBI</strong> - EM Local Currency Bonds</li>
                         <li><strong>EMHY</strong> - EM High Yield Bonds</li>
                         <li><strong>LQD</strong> - US Investment Grade Corporate Bonds</li>
+                        <li><strong>HYG</strong> - US High Yield Corporate Bonds</li>
                     </ul>
                 </div>
             </div>
@@ -279,6 +282,7 @@ def generate_dashboard_html(etf_info):
                                 <li><strong>GBI</strong> - EM Local Currency Bonds</li>
                                 <li><strong>EMHY</strong> - EM High Yield Bonds</li>
                                 <li><strong>LQD</strong> - US Investment Grade Corporate Bonds</li>
+                                <li><strong>HYG</strong> - US High Yield Corporate Bonds</li>
                             </ul>
                         </div>
                     </div>
